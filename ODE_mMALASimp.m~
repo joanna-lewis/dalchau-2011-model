@@ -24,8 +24,7 @@ ParametersToInfer     = [MathParToInfer, numel(MathParToInfer) + StatParToInfer]
 
 NumOfParameters       = numel(ParametersToInfer);
 
-StepSize = 10^(-6);
-Scaling  = NumOfParameters^(1/3);
+StepSize = 10^(-2);
 
 SpeciesObserved       = Options.ObservedViralSpecies;
 
@@ -86,21 +85,10 @@ disp('Initialisation Completed..');
 % Initialise iteration number
 IterationNum = 0;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Main loop               %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-while ContinueIterations
-    
-    % Increment iteration number
-    IterationNum = IterationNum + 1;
-        
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Mutate parameter values %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % For each parameter, sample new value and accept with metropolis ratio
-    for a = [ParametersToInfer]
-        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% calculate gradient, metric, etc. at initial point
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
         % calculate stuff with old parameters - could speed this up by
         % remembering from previous iteration
         [OldXEstimates, OldXSens] = ode_model_sol(Parameters(1:end-1), ...
@@ -132,14 +120,31 @@ while ContinueIterations
         end
         % add prior to Fisher Information
         
-        OldG = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
+        OldG    = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
         
         OldGInv = inv(OldG + eye(NumOfParameters)*1e-6);
+        
+        OldMean = Parameters(a) + OldGInv*OldGradL*StepSize/2;
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Main loop               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+while ContinueIterations
+    
+    % Increment iteration number
+    IterationNum = IterationNum + 1;
+        
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Mutate parameter values %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % For each parameter, sample new value and accept with metropolis ratio
+    for a = [ParametersToInfer]
+        
         % make a proposal
         AttemptedMutation(a)  = AttemptedMutation(a) + 1;
         
-        OldMean     = Parameters(a) + OldGInv*OldGradL*StepSize/2;
         NewParas    = Parameters;
         NewParas(a) = OldMean + randn(1)*chol(StepSize*OldGInv);
         
@@ -189,32 +194,20 @@ while ContinueIterations
         NewLogPrior = log(ModelParameterPrior(a, NewParas(a)));
         
         % and p(old|new) and p(new|old)
-        
-        OldMean
-        NewParas
-        NewMean
-        Parameters
-        
-        -sum(log(diag(chol(StepSize*OldGInv)))) 
-        - 0.5*(OldMean-NewParas)'*(OldG/StepSize)*(OldMean-NewParas)
-        
-        -sum(log(diag(chol(StepSize*NewGInv)))) 
-        - 0.5*(NewMean-Parameters)'*(NewG/StepSize)*(NewMean-Parameters)
-       
-                
+      
         LogProbNewGivenOld = -sum(log(diag(chol(StepSize*OldGInv)))) - 0.5*(OldMean-NewParas(a))'*(OldG/StepSize)*(OldMean-NewParas(a));
         
-        LogProbOldGivenNew = -sum(log(diag(chol(StepSize*NewGInv)))) - 0.5*(NewMean-Parameters(a))'*(NewG/StepSize)*(NewMean-Parameters);
+        LogProbOldGivenNew = -sum(log(diag(chol(StepSize*NewGInv)))) - 0.5*(NewMean-Parameters(a))'*(NewG/StepSize)*(NewMean-Parameters(a));
         
         
         % accept or reject
         
-        NewLL  - OldLL
-        NewLogPrior - OldLogPrior
-        LogProbOldGivenNew - LogProbNewGivenOld
+%         NewLL  - OldLL
+%         NewLogPrior - OldLogPrior
+%         LogProbOldGivenNew - LogProbNewGivenOld
         
          Ratio = NewLL + NewLogPrior + LogProbOldGivenNew ...
-                    - OldLL - OldLogPrior - LogProbNewGivenOld
+                    - OldLL - OldLogPrior - LogProbNewGivenOld;
             
             if Ratio > 0 || (log(rand) < Ratio)
                 % Accept proposal
@@ -222,6 +215,10 @@ while ContinueIterations
                 Parameters                 = NewParas;
                 AcceptedMutation(a)        = AcceptedMutation(a) + 1;
                 OldLL                      = NewLL;
+                OldLogPrior                = NewLogPrior;
+                OldG                       = NewG;
+                OldGInv                    = NewGInv;
+                OldMean       
             end
     end
     

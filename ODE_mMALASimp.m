@@ -85,21 +85,10 @@ disp('Initialisation Completed..');
 % Initialise iteration number
 IterationNum = 0;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Main loop               %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-while ContinueIterations
-    
-    % Increment iteration number
-    IterationNum = IterationNum + 1;
-        
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Mutate parameter values %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % For each parameter, sample new value and accept with metropolis ratio
-    for a = [ParametersToInfer]
-        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% calculate gradient, metric, etc. at initial point
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+a = ParametersToInfer;
         % calculate stuff with old parameters - could speed this up by
         % remembering from previous iteration
         [OldXEstimates, OldXSens] = ode_model_sol(Parameters(1:end-1), ...
@@ -131,14 +120,31 @@ while ContinueIterations
         end
         % add prior to Fisher Information
         
-        OldG = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
+        OldG    = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
         
         OldGInv = inv(OldG + eye(NumOfParameters)*1e-6);
+        
+        OldMean = Parameters(a) + OldGInv*OldGradL*StepSize/2;
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Main loop               %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+while ContinueIterations
+    
+    % Increment iteration number
+    IterationNum = IterationNum + 1;
+        
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Mutate parameter values %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % For each parameter, sample new value and accept with metropolis ratio
+    for a = [ParametersToInfer]
+        
         % make a proposal
         AttemptedMutation(a)  = AttemptedMutation(a) + 1;
         
-        OldMean     = Parameters(a) + OldGInv*OldGradL*StepSize/2;
         NewParas    = Parameters;
         NewParas(a) = OldMean + randn(1)*chol(StepSize*OldGInv);
         
@@ -209,6 +215,10 @@ while ContinueIterations
                 Parameters                 = NewParas;
                 AcceptedMutation(a)        = AcceptedMutation(a) + 1;
                 OldLL                      = NewLL;
+                OldLogPrior                = NewLogPrior;
+                OldG                       = NewG;
+                OldGInv                    = NewGInv;
+                OldMean                    = NewMean;
             end
     end
     
@@ -247,11 +257,11 @@ while ContinueIterations
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Adjust proposal width for parameter value inference %
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    if AcceptedMutation/AttemptedMutation < 0.4
-                        StepSize = StepSize * 0.9;
-                    elseif AcceptedMutation(a)/AttemptedMutation(a) > 0.7
-                        StepSize = StepSize * 1.1;
-                    end
+%                     if AcceptedMutation/AttemptedMutation < 0.4
+%                         StepSize = StepSize * 0.9;
+%                     elseif AcceptedMutation(a)/AttemptedMutation(a) > 0.7
+%                         StepSize = StepSize * 1.1;
+%                     end
                     
                     disp([num2str(100*AcceptedMutation(a)/AttemptedMutation(a)) '% mutation acceptance for parameter ' num2str(a)]);
                             
