@@ -54,8 +54,8 @@ Parameters = transpose([8.764e-4, 5.658e-6, 4.177e-7,... %(u)
                     1]);               % proportionality for epitope data
 
 % Set up proposal counters
-AcceptedMutation  = zeros(size(Parameters));
-AttemptedMutation = zeros(size(Parameters));
+AcceptedMutation  = 0;
+AttemptedMutation = 0;
 
 % Set up parameter history variable
 ParaHistory         = zeros(NumOfPosteriorSamples, NumOfParameters);
@@ -88,24 +88,28 @@ IterationNum = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % calculate gradient, metric, etc. at initial point
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-a = ParametersToInfer;
         % calculate stuff with old parameters - could speed this up by
         % remembering from previous iteration
         [OldXEstimates, OldXSens] = ode_model_sol(Parameters(1:end-1), ...
                         n_tot, ...
                         TimePoints, ...
                         Options.InitialValues, ...
-                        a);
+                        ParametersToInfer);
         
         OldLL       = LogNormPDF(Y(2:end), Parameters(end)*OldXEstimates(3*n_tot+1,:), CurrentNoise);
-        OldLogPrior = log(ModelParameterPrior(a, Parameters(a)));
         
-        OldGradL = sum( ...
-                     (Y(2:end) - OldXEstimates(3*n_tot+1,:)) ...
-                     .* OldXSens(3*n_tot+1,:) ...
-                     /CurrentNoise ...
-                     );
-        OldGradL = OldGradL + ModelParameterLogPriorDerivative(a, Parameters(a));
+        OldLogPrior = 0;
+        for i = ParametersToInfer
+            OldLogPrior = OldLogPrior + log(ModelParameterPrior(i, Parameters(i)));
+        end
+        
+        
+        OldGradL = ((Y(2:end) - OldXEstimates(3*n_tot+1,:)) ...
+                     *permute(OldXSens(3*n_tot+1,:,:),[2,3,1])) ...
+                     /CurrentNoise;
+        for i = 1:NumOfParameters
+            OldGradL(i) = OldGradL(i) + ModelParameterLogPriorDerivative(i, Parameters(i));
+        end
         
         OldG = zeros(NumOfParameters);
         for i = 1:NumOfParameters
@@ -118,13 +122,15 @@ a = ParametersToInfer;
                 
             end
         end
+        
         % add prior to Fisher Information
-        OldG    = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
+        for i = 1:NumOfParameters
+            OldG(i,i) = OldG(i,i) - ModelParameterLogPriorDerivative2(ParametersToInfer(i), Parameters(ParametersToInfer(i))); 
+        end
         
         OldGInv = inv(OldG + eye(NumOfParameters)*1e-6);
         
-        OldMean = Parameters(a) + OldGInv*OldGradL*StepSize/2;
-
+        OldMean = Parameters(ParametersToInfer) + OldGInv*OldGradL'*StepSize/2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Main loop               %
@@ -138,89 +144,95 @@ while ContinueIterations
     %%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Mutate parameter values %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % For each parameter, sample new value and accept with metropolis ratio
-    for a = [ParametersToInfer]
+    % sample new point in parameter space, and accept with metropolis ratio
         
-        % make a proposal
-        AttemptedMutation(a)  = AttemptedMutation(a) + 1;
-        
-        NewParas    = Parameters;
-        NewParas(a) = OldMean + randn(1)*chol(StepSize*OldGInv);
-        
-       % NewParas(a) - Parameters(a)
-        
-        % calculate stuff with proposed parameters
-        try
-            [NewXEstimates, NewXSens] = ode_model_sol(NewParas(1:end-1), ...
-                        n_tot, ...
-                        TimePoints, ...
-                        Options.InitialValues, ...
-                        a);
-        
-            NewLL = LogNormPDF(Y(2:end), NewParas(end)*NewXEstimates(3*n_tot+1,:), CurrentNoise);
-            
-            NewGradL = sum( ...
-                         (Y(2:end) - NewXEstimates(3*n_tot+1,:)) ...
-                         .* NewXSens(3*n_tot+1,:) ...
-                         /CurrentNoise ...
-                         );
-            NewGradL = NewGradL + ModelParameterLogPriorDerivative(a, NewParas(a));
-            
-            NewG = zeros(NumOfParameters);
-            for i = 1:NumOfParameters
-                for j = i:NumOfParameters
+    % make a proposal
+    AttemptedMutation  = AttemptedMutation + 1;
 
-                    NewG(i,j) = (1/CurrentNoise)*...
-                        (NewXSens(3*n_tot+1,:,i)*NewXSens(3*n_tot+1,:,j)');
+    NewParas    = Parameters;
+    NewParas(ParametersToInfer) = OldMean + chol(StepSize*OldGInv)*randn(NumOfParameters,1);
 
-                    NewG(j,i) = NewG(i,j);
+   % NewParas(a) - Parameters(a)
 
-                end
-            end
-        % add prior to Fisher Information
-        NewG = NewG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, NewParas(ParametersToInfer))); 
-        
-        NewGInv = inv(NewG + eye(NumOfParameters)*1e-6);
-            
-        NewMean = NewParas(a) + NewGInv*NewGradL*StepSize/2;
-        
-        catch
-            NewLL = -1e300;
-            NewMean = 0;
-            disp('bad proposal')
+    % calculate stuff with proposed parameters
+    try
+        [NewXEstimates, NewXSens] = ode_model_sol(NewParas(1:end-1), ...
+                    n_tot, ...
+                    TimePoints, ...
+                    Options.InitialValues, ...
+                    ParametersToInfer);
+
+        NewLL = LogNormPDF(Y(2:end), NewParas(end)*NewXEstimates(3*n_tot+1,:), CurrentNoise);
+
+        NewGradL = ((Y(2:end) - NewXEstimates(3*n_tot+1,:)) ...
+                     * permute(NewXSens(3*n_tot+1,:,:),[2,3,1])) ...
+                     /CurrentNoise;
+        for i = 1:NumOfParameters
+            NewGradL(i) = NewGradL(i) + ModelParameterLogPriorDerivative(i, NewParas(i));
         end
         
-        NewLogPrior = log(ModelParameterPrior(a, NewParas(a)));
+
+        NewG = zeros(NumOfParameters);
+        for i = 1:NumOfParameters
+            for j = i:NumOfParameters
+
+                NewG(i,j) = (1/CurrentNoise)*...
+                    (NewXSens(3*n_tot+1,:,i)*NewXSens(3*n_tot+1,:,j)');
+
+                NewG(j,i) = NewG(i,j);
+
+            end
+        end
+                
         
-        % and p(old|new) and p(new|old)
-      
-        LogProbNewGivenOld = -sum(log(diag(chol(StepSize*OldGInv)))) - 0.5*(OldMean-NewParas(a))'*(OldG/StepSize)*(OldMean-NewParas(a));
+    % add prior to Fisher Information
+        for i = 1:NumOfParameters
+            NewG(i,i) = NewG(i,i) - ModelParameterLogPriorDerivative2(ParametersToInfer(i), NewParas(ParametersToInfer(i))); 
+        end
         
-        LogProbOldGivenNew = -sum(log(diag(chol(StepSize*NewGInv)))) - 0.5*(NewMean-Parameters(a))'*(NewG/StepSize)*(NewMean-Parameters(a));
-        
-        
-        % accept or reject
-        
+    NewGInv = inv(NewG + eye(NumOfParameters)*1e-6);
+
+    NewMean = NewParas(ParametersToInfer) + NewGInv*NewGradL'*StepSize/2;
+
+    catch
+        NewLL = -1e300;
+        NewMean = 0;
+        disp('bad proposal')
+    end
+
+    NewLogPrior = 0;
+    for i = ParametersToInfer
+        NewLogPrior = NewLogPrior + log(ModelParameterPrior(i, NewParas(i)));
+    end
+
+    % and p(old|new) and p(new|old)
+
+    LogProbNewGivenOld = -sum(log(diag(chol(StepSize*OldGInv)))) - 0.5*(OldMean-NewParas(ParametersToInfer))'*(OldG/StepSize)*(OldMean-NewParas(ParametersToInfer));
+
+    LogProbOldGivenNew = -sum(log(diag(chol(StepSize*NewGInv)))) - 0.5*(NewMean-Parameters(ParametersToInfer))'*(NewG/StepSize)*(NewMean-Parameters(ParametersToInfer));
+
+
+    % accept or reject
+
 %         NewLL  - OldLL
 %         NewLogPrior - OldLogPrior
 %         LogProbOldGivenNew - LogProbNewGivenOld
-        
-         Ratio = NewLL + NewLogPrior + LogProbOldGivenNew ...
-                    - OldLL - OldLogPrior - LogProbNewGivenOld;
-            
-            if Ratio > 0 || (log(rand) < Ratio)
-                % Accept proposal
-                % Update variables
-                Parameters                 = NewParas;
-                AcceptedMutation(a)        = AcceptedMutation(a) + 1;
-                OldLL                      = NewLL;
-                OldLogPrior                = NewLogPrior;
-                OldG                       = NewG;
-                OldGInv                    = NewGInv;
-                OldMean                    = NewMean;
-            end
-    end
-    
+
+     Ratio = NewLL + NewLogPrior + LogProbOldGivenNew ...
+                - OldLL - OldLogPrior - LogProbNewGivenOld;
+
+        if Ratio > 0 || (log(rand) < Ratio)
+            % Accept proposal
+            % Update variables
+            Parameters                 = NewParas;
+            AcceptedMutation           = AcceptedMutation + 1;
+            OldLL                      = NewLL;
+            OldLogPrior                = NewLogPrior;
+            OldG                       = NewG;
+            OldGInv                    = NewGInv;
+            OldMean                    = NewMean;
+        end
+
     
     
     %%%%%%%%%%%%%%%%%%%
@@ -262,7 +274,7 @@ while ContinueIterations
 %                         StepSize = StepSize * 1.1;
 %                     end
                     
-                    disp([num2str(100*AcceptedMutation(a)/AttemptedMutation(a)) '% mutation acceptance for parameter ' num2str(a)]);
+                    disp([num2str(100*AcceptedMutation/AttemptedMutation) '% mutation acceptance']);
                             
             disp(' ')
             disp('Parameter step size:')
@@ -300,6 +312,15 @@ while ContinueIterations
         if IterationNum == ConvergenceIterationNum + NumOfPosteriorSamples
             % 5000 posterior samples have been collected so stop
             ContinueIterations = false;
+        end
+        
+        % Adjust parameter proposal widths
+        if mod(IterationNum, 1000) == 0
+            
+            disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+            disp(['Iteration ' num2str(IterationNum)]);
+            disp('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+            disp(' ')
         end
         
     end

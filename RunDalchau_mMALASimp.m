@@ -68,7 +68,7 @@ NoisyData = csvread('simulate_data_111213_1.csv');
 % Call sampling routine %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-Options.MathParToInfer = [3]; % indices of the parameters in the mathematical model you're interested in 
+Options.MathParToInfer = [1,2,3]; % indices of the parameters in the mathematical model you're interested in 
 Options.StatParToInfer = []; % indices of the parameters in the statistical model you're interested in 
 
 
