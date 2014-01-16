@@ -11,7 +11,7 @@ rand('twister', 1);
 %%%%%%%%%%%%%%%
 
 Options.Burnin                = 1000;
-Options.NumOfPosteriorSamples = 1;
+Options.NumOfPosteriorSamples = 5000;
 
 
 % Set name for saving results
@@ -68,7 +68,7 @@ NoisyData = csvread('simulate_data_111213_1.csv');
 % Call sampling routine %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-Options.MathParToInfer = [1]; % indices of the parameters in the mathematical model you're interested in 
+Options.MathParToInfer = [3]; % indices of the parameters in the mathematical model you're interested in 
 Options.StatParToInfer = []; % indices of the parameters in the statistical model you're interested in 
 
 

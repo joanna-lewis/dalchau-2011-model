@@ -24,7 +24,7 @@ ParametersToInfer     = [MathParToInfer, numel(MathParToInfer) + StatParToInfer]
 
 NumOfParameters       = numel(ParametersToInfer);
 
-StepSize = 10^(-2);
+StepSize = 10^(0);
 
 SpeciesObserved       = Options.ObservedViralSpecies;
 
@@ -119,7 +119,6 @@ a = ParametersToInfer;
             end
         end
         % add prior to Fisher Information
-        
         OldG    = OldG - diag(ModelParameterLogPriorDerivative2(ParametersToInfer, Parameters(ParametersToInfer))); 
         
         OldGInv = inv(OldG + eye(NumOfParameters)*1e-6);
