@@ -11,7 +11,7 @@ rand('twister', 1);
 %%%%%%%%%%%%%%%
 
 Options.Burnin                = 1000;
-Options.NumOfPosteriorSamples = 5000;
+Options.NumOfPosteriorSamples = 1;
 
 
 % Set name for saving results
@@ -69,7 +69,7 @@ NoisyData = csvread('simulate_data_111213_1.csv');
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 Options.MathParToInfer = [1,2,3]; % indices of the parameters in the mathematical model you're interested in 
-Options.StatParToInfer = []; % indices of the parameters in the statistical model you're interested in 
+Options.StatParToInfer = [2]; % indices of the parameters in the statistical model you're interested in 
 
 
 ODE_mMALASimp(NoisyData(2,:), TimePoints, Options);

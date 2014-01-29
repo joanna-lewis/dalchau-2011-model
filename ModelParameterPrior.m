@@ -12,7 +12,8 @@ modes = [8.764e-4, 5.658e-6, 4.177e-7,... %(u)
                     0.1142, 150.5, 1.663e-9,...            %(e, g_M, b_T)
                     7.989e-5, 1.726e-3, 9.329e-5, ...      % (d_M, d_T, d_Me)
                     1505, ...
-                    1.4920];
+                    1, ...      % proportionality for tryptic data
+                    1.9768];         % var(error) for epitope data
 sds = 0.1*abs(modes);
 means = log(modes) + sds.^2;
 
@@ -23,7 +24,7 @@ if Value == 'random'
     % Produce random value from the prior
     %PP = random('LogNormal',means(ParaNum), sds(ParaNum));
 else
-    if (Value < 0)
+    if (Value <= 0)
         PP = 0;
     else
         % Calculate probability of value from the prior
