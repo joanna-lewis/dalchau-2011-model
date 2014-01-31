@@ -53,7 +53,7 @@ Parameters = transpose([8.764e-4, 5.658e-6, 4.177e-7,... %(u)
                     0.1142, 150.5, 1.663e-9,...            %(e, g_M, b_T)
                     7.989e-5, 1.726e-3, 9.329e-5, ...      % (d_M, d_T, d_Me)
                     1505, ...
-                    1, ...      % proportionality for tryptic data
+                    1, ...      % scale factor
                     1.9768]);         % sd(error) for epitope data
                 
 % Set up proposal counters
@@ -81,10 +81,12 @@ IterationNum = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % calculate stuff with old parameters - could speed this up by
         % remembering from previous iteration
-        [OldXEstimates, OldXSens] = ode_model_sol(Parameters(1:end-2), ...
+        [OldXEstimates, OldXSens] = ode_model_sol_vargen(Parameters(1:end-2), ...
                         n_tot, ...
+                        1, ...
                         TimePoints, ...
                         Options.InitialValues, ...
+                        Options.gdata, ...
                         ParametersToInfer(ParametersToInfer<=2*n_tot+13));
         
         OldLL       = LogNormPDF(Y(2:end), OldXEstimates(3*n_tot+1,:), Parameters(end)^2);
@@ -98,9 +100,12 @@ IterationNum = 0;
         OldGradL = ((Y(2:end) - OldXEstimates(3*n_tot+1,:)) ...
                      *permute(OldXSens(3*n_tot+1,:,:),[2,3,1])) ...
                      /Parameters(end)^2;
+        
+        if length(StatParToInfer)>0
         % wrt noise
         OldGradL = cat(2, OldGradL, - ...
             (length(Y)-1)/Parameters(end) + sum((Y(2:end) - OldXEstimates(3*n_tot+1,:)).^2))/Parameters(end)^3;
+        end
         
         % add in prior
         for i = 1:NumOfParameters
@@ -119,6 +124,7 @@ IterationNum = 0;
                 
             end
         end
+        if length(StatParToInfer)>0
         % error in epitope expression
         for i = length(MathParToInfer)+1:NumOfParameters
             for j = i:NumOfParameters
@@ -128,13 +134,13 @@ IterationNum = 0;
                 
             end
         end
+        end
 
 % prior=zeros(NumOfParameters);
 %         % add prior to Fisher Information
 %         for i = 1:NumOfParameters
 %             prior(i,i) = - ModelParameterLogPriorDerivative2(ParametersToInfer(i), Parameters(ParametersToInfer(i))); 
 %         end
-OldG
         % add prior to Fisher Information
         for i = 1:NumOfParameters
             ModelParameterLogPriorDerivative2(ParametersToInfer(i), Parameters(ParametersToInfer(i)))
@@ -169,15 +175,17 @@ while ContinueIterations
    % NewParas(a) - Parameters(a)
 
     % calculate stuff with proposed parameters
-    %try
+try
 %     Parameters(1:end-2)
 %     NewParas(1:end-2)
 %     Parameters(1:end-2)./NewParas(1:end-2)
     
-        [NewXEstimates, NewXSens] = ode_model_sol(NewParas(1:end-2), ...
+        [NewXEstimates, NewXSens] = ode_model_sol_vargen(NewParas(1:end-2), ...
                     n_tot, ...
+                    1, ...
                     TimePoints, ...
                     Options.InitialValues, ...
+                    Options.gdata, ...
                     ParametersToInfer(ParametersToInfer<=2*n_tot+13));
 %                size(NewXSens)
 
@@ -189,10 +197,12 @@ while ContinueIterations
                      * permute(NewXSens(3*n_tot+1,:,:),[2,3,1])) ...
                      /NewParas(end)^2;
         
+        if length(StatParToInfer)>0
         % wrt noise
         NewGradL = cat(2, NewGradL, - ...
             ((length(Y)-1)/NewParas(end) + sum((Y(2:end) - NewXEstimates(3*n_tot+1,:)).^2))/NewParas(end)^3);
-
+        end
+        
          % add in prior
         for i = 1:NumOfParameters
             NewGradL(i) = NewGradL(i) + ModelParameterLogPriorDerivative(i, NewParas(i));
@@ -213,6 +223,7 @@ while ContinueIterations
             end
         end
         
+        if length(StatParToInfer)>0
         % error in epitope expression
         for i = length(MathParToInfer)+1:NumOfParameters
             for j = i:NumOfParameters
@@ -221,6 +232,7 @@ while ContinueIterations
                 NewG(j,i) = NewG(i,j);
                 
             end
+        end
         end
             
         % add prior to Fisher Information
@@ -232,13 +244,13 @@ while ContinueIterations
     
     NewMean = NewParas(ParametersToInfer) + NewGInv*NewGradL'*StepSize/2;
 
-%     catch
-%         NewLL = -1e300;
-%         NewMean = 0;
-%         NewG = OldG;
-%         NewGInv = OldGInv;
-%         disp('bad proposal')
-%     end
+    catch
+        NewLL = -1e300;
+        NewMean = 0;
+        NewG = OldG;
+        NewGInv = OldGInv;
+        disp('bad proposal')
+    end
 
     NewLogPrior = 0;
     for i = ParametersToInfer

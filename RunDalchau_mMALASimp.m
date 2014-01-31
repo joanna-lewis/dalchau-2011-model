@@ -61,7 +61,10 @@ Options.InitialValues = dalchau_model_findss(...
 % Read in data          %
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-NoisyData = csvread('simulate_data_111213_1.csv');
+
+NoisyData = csvread('simulate_data_111213_2.csv'); % same as simulate_data_111213_2.csv, but tryptic peptide levels set to zero
+
+Options.gdata = [TimePoints'; NoisyData(1:3,:)];
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%        
@@ -69,9 +72,10 @@ NoisyData = csvread('simulate_data_111213_1.csv');
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 Options.MathParToInfer = [1,2,3]; % indices of the parameters in the mathematical model you're interested in 
-Options.StatParToInfer = [2]; % indices of the parameters in the statistical model you're interested in 
+Options.StatParToInfer = []; % indices of the parameters in the statistical model you're interested in 
 
 
-ODE_mMALASimp(NoisyData(2,:), TimePoints, Options);
+
+ODE_mMALASimp(NoisyData(4,:), TimePoints, Options);
 
 
