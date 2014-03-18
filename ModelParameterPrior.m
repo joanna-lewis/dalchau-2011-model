@@ -13,8 +13,10 @@ modes = [8.764e-4, 5.658e-6, 4.177e-7,... %(u)
                     7.989e-5, 1.726e-3, 9.329e-5, ...      % (d_M, d_T, d_Me)
                     1505, ...
                     1, ...      % proportionality for tryptic data
-                    1.9768];         % var(error) for epitope data
-sds = 0.1*abs(modes);
+                    1.9768];         % sd(error) for epitope data
+% sds = 0.1*abs(modes);
+
+sds = abs(modes).*(log10(modes)+9);
 means = log(modes) + sds.^2;
 
 
