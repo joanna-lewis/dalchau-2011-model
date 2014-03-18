@@ -48,7 +48,6 @@ Parameters = transpose([8.764, 5.658, 4.177,... %(u)
                     1.142, 1.505, 1.663,...            %(e, g_M, b_T)
                     7.989, 1.726, 9.329, ...      % (d_M, d_T, d_Me)
                     1.505, ...
-                    1, ...      % scale factor
                     1.9768]);         % sd(error) for epitope data
                 
 % Set up proposal counters
@@ -123,7 +122,7 @@ while ContinueIterations
    % NewParas(a) - Parameters(a)
 
     % calculate stuff with proposed parameters
-try
+%try
 %     Parameters(1:end-2)
 %     NewParas(1:end-2)
 %     Parameters(1:end-2)./NewParas(1:end-2)
@@ -144,13 +143,13 @@ try
     NewGInv = inv(NewG + eye(NumOfParameters)*1e-6);
     NewMean = NewParas(ParametersToInfer) + NewGInv*NewGradL'*StepSize/2;
 
-    catch
-        NewLL = -1e300;
-        NewMean = 0;
-        NewG = OldG;
-        NewGInv = OldGInv;
-        disp('bad proposal')
-    end
+%    catch
+%         NewLL = -1e300;
+%         NewMean = 0;
+%         NewG = OldG;
+%         NewGInv = OldGInv;
+%         disp('bad proposal')
+%     end
 
     NewLogPrior = 0;
     for i = ParametersToInfer

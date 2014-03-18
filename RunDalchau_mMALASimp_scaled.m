@@ -25,7 +25,7 @@ Options.ParameterOrderOfMagnitude = transpose([-4, -6, -7, ...
                                     -1, 2, -9, ...
                                     -5, -3, -5, ...
                                     3, ...
-                                    0, 0]); % scale factor and sd (error) for epitope data
+                                    0]); % scale factor and sd (error) for epitope data
 Options.ObservedViralSpecies    = [1];
 Options.UnobservedViralSpecies  = [2];
 Options.SelfSpecies             = [3];
@@ -78,7 +78,7 @@ Options.gdata = [TimePoints'; NoisyData(1:3,:)];
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 Options.MathParToInfer = [1, 2, 3]; % indices of the parameters in the mathematical model you're interested in 
-Options.StatParToInfer = [2]; % indices of the parameters in the statistical model you're interested in 
+Options.StatParToInfer = [1]; % indices of the parameters in the statistical model you're interested in 
 
 
 
