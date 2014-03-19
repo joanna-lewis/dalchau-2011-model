@@ -60,7 +60,7 @@ true_para_history   = zeros(NumOfPosteriorSamples, NumOfParameters);
 LLHistory           = zeros(NumOfPosteriorSamples, NumOfSpecies);
 
 % Set monitor rate for adapting step sizes
-MonitorRate = 100;
+MonitorRate = 10;
 
 % Set up converged flag
 ContinueIterations = true;
