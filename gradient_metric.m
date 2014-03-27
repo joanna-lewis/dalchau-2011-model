@@ -16,7 +16,7 @@ gradient = [];
 metric = [];
 
 NumOfParameters = length(ParametersToInfer);
-MathParToInfer = ParametersToInfer(Options.MathParToInfer);
+MathParToInfer = Options.MathParToInfer;
 
 InitialValues = dalchau_model_findss(...
                     true_parameters(1:(2*n_tot+13)), ...
@@ -31,6 +31,15 @@ InitialValues = dalchau_model_findss(...
                     InitialValues, ...
                     Options.gdata, ...
                     ParametersToInfer(ParametersToInfer<=2*n_tot+13));
+
+                
+% [XEstimates, XSens] = ode_model_sol_vargen(true_parameters(1:2*n_tot+13), ...
+%                     n_tot, ...
+%                     1, ...
+%                     TimePoints, ...
+%                     InitialValues, ...
+%                     Options.gdata, ...
+%                     ParametersToInfer(ParametersToInfer<=2*n_tot+13))
            
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,7 +72,7 @@ if ismember('gradient', req)
     if ismember(length(true_parameters), ParametersToInfer)
     % wrt noise
     gradient = cat(2, gradient, - ...
-        (length(Y)-1)/true_parameters(end) + sum((Y(2:end) - XEstimates(3*n_tot+1,:)).^2))/true_parameters(end)^3;
+        (length(Y)-1)/true_parameters(end) + sum((Y(2:end) - XEstimates(3*n_tot+1,:)).^2)/true_parameters(end)^3);
     end
     % will have to put wrt scaling here, in due course
 
@@ -95,8 +104,8 @@ if ismember('gradient', req)
         end
         if ismember(length(true_parameters), ParametersToInfer)
         % error in epitope expression
-        dim = size(metric,1);
-                metric(dim, dim) = 2*length(Y(2:end))/true_parameters(end)^2;                
+            dim = size(metric,1);
+            metric(dim, dim) = 2*length(Y(2:end))/true_parameters(end)^2;                
         end
         
 

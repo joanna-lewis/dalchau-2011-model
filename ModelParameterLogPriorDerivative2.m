@@ -5,7 +5,7 @@ function PP = ModelParameterLogPriorDerivative2(ParaNum, Value)
 % Lognormal Priors
 
 % define means and standard deviations of prior distributions
-modes = [8.764e-4, 5.658e-6, 4.177e-7,... %(u)
+modes = [1.353e-6, 5.658e-6, 4.177e-7,... %(u)
                     2.093e4, 1.759e4, 1.064e4,...    %(g)
                     1.185e-6, 2.104e4, 1.945e-9,...   %(u_T, q, b_B2705)
                     8.303e-8, 0.13, 936.3,...              %(c, d_p, v)
@@ -15,7 +15,8 @@ modes = [8.764e-4, 5.658e-6, 4.177e-7,... %(u)
                     1.9768];         % sd(error) for epitope data
 
 %sds = 0.1*abs(modes);
-sds = abs(modes).*(log10(modes)+9);
+sds = [1.414, sqrt(log(10)/2)*ones(1,numel(modes)-1)];
+%sds = abs(modes).*(log10(modes)+9);
 %sds = 0.56770116784365*ones(1,numel(modes));
 %sds = 0.4755198067258725*ones(1,numel(modes));
 
@@ -25,8 +26,12 @@ means = log(modes) + sds.^2;
 if (Value <= 0)
     PP = 0;
 else
+    if ParaNum < numel(modes)
     %PP = 0;
-    PP = (1 - (1 - log(Value) + means(ParaNum))/sds(ParaNum).^2)./Value.^2;
+        PP = (1 - (1 - log(Value) + means(ParaNum))/sds(ParaNum).^2)./Value.^2;
+    else
+        PP = 0;  % gradient = 0 for sd(error) (uniform distribution)
+    end
 end
 
 
