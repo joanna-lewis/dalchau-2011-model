@@ -20,10 +20,10 @@ function[sol, solS]=ode_model_sol_vargen(parms, n, scale, solveat, initial, gdat
     data.scale = scale;
     data.gdata = gdata;
     options = CVodeSetOptions(  'UserData', data,...
-                                'RelTol',1.e-8,...
-                                'AbsTol',1.e-6,...
+                                  'RelTol',1e-10,...
+                                 'AbsTol',1e-5,...
                                 'LinearSolver','Dense',...
-                                'MaxNumSteps', 500);
+                                'MaxNumSteps', 5000);
     %%%%%%%%%%%%%%%%%%%%%%%
     % Initialise cvodes
     %%%%%%%%%%%%%%%%%%%%%%%
@@ -39,12 +39,15 @@ function[sol, solS]=ode_model_sol_vargen(parms, n, scale, solveat, initial, gdat
     %%%%%%%%%%%%%%%%%%%%%%%
     
     Ns = numel(sens_required); % just look at one parameter for the moment
-    yS0 = zeros(4*n+4,Ns);  %Initial conditions for sensitivity variables. YS0 must 
+    yS0 = zeros(3*n+3,Ns);  %Initial conditions for sensitivity variables. YS0 must 
                         % be a matrix with N rows and Ns columns, where N is the 
                         % problem dimension and Ns the number of sensitivity systems.
     FSAoptions = CVodeSensSetOptions('method','Simultaneous',...
-                                 'ErrControl', true,...
+                                 'ErrControl', false,...
+    ... %                               'RelTol',1e-10,...
+    ... %                                'AbsTol',1e-5*ones(1, length(sens_required)),...
                                  'ParamField', 'p',...
+                                 'ParamList', sens_required,...
                                  'ParamScales', data.p(sens_required));
                              
     CVodeSensInit(Ns, [], yS0, FSAoptions);
@@ -91,38 +94,50 @@ function[y_dot, flag, new_data] = model(t, y, data)
             
             gscale = interp1(gdata(1,:)', gdata(2:end,:)', t, 'linear', 'extrap');
             
-            P_is=y(1:n);
-            MP_is_U=y(n+1:2*n); 
-            TMP_is_U=y(2*n+1:3*n); 
-            MeP_is_U=y(3*n+1:4*n); 
-            M_U=y(4*n+1); 
-            T=y(4*n+2); 
-            TM_U=y(4*n+3);
-            Me_U=y(4*n+4);
+            %P_is=y(1:n);
+            MP_is_U  = y(1:n); 
+            TMP_is_U = y(n+1:2*n); 
+            MeP_is_U = y(2*n+1:3*n); 
+            M_U      = y(3*n+1); 
+            %T        = y(3*n+2); 
+            TM_U     = y(3*n+2);
+            Me_U     = y(3*n+3);
+            
+            P_is   = g.*gscale'/d_p;
+            T      = g_T/d_T;
             
             y_dot = zeros(size(y));
             
-            y_dot(1:n) = (u.*MP_is_U + q*(u.*TMP_is_U) - (b*M_U+c*TM_U+d_p).*P_is)+ g.*gscale'; % Eqn 8: d(P_is)/dt
+            %y_dot(1:n) = (u.*MP_is_U + q*(u.*TMP_is_U) - (b*M_U+c*TM_U+d_p).*P_is)+ g.*gscale'; %scaling(t); % Eqn 8: d(P_is)/dt
             
-            y_dot(n+1:2*n) = b*M_U*P_is + u_T*v*TMP_is_U - (u+e).*MP_is_U; % Eqn 5 d(MP_is)/dt (unlabelled)
+            y_dot(1:n) = b*M_U*P_is + u_T*v*TMP_is_U - (u+e).*MP_is_U; % Eqn 5 d(MP_is)/dt (unlabelled)
             
-            y_dot(2*n+1:3*n) = c*TM_U*P_is - (u*q+u_T*v).*TMP_is_U; % Eqn 7 d(TMP_is)/dt (unlabelled)
+            y_dot(n+1:2*n) = c*TM_U*P_is - (u*q+u_T*v).*TMP_is_U; % Eqn 7 d(TMP_is)/dt (unlabelled)
             
-            y_dot(3*n+1:4*n) = e*MP_is_U - u.*MeP_is_U; % Eqn 9 d(MeP_is)/dt (unlabelled)
+            y_dot(2*n+1:3*n) = e*MP_is_U - u.*MeP_is_U; % Eqn 9 d(MeP_is)/dt (unlabelled)
                         
-            y_dot(4*n+1) = dot(u,MP_is_U) + u_T*TM_U + g_M - (b*sum(P_is)+b_T*T +d_M)*M_U; % Eqn 3 dM/dt (unlabelled)
+            y_dot(3*n+1) = dot(u,MP_is_U) + u_T*TM_U + g_M - (b*sum(P_is)+b_T*T +d_M)*M_U; % Eqn 3 dM/dt (unlabelled)
             
-            y_dot(4*n+2) = u_T*TM_U + g_T +u_T*v*sum(TMP_is_U) - (b_T*M_U + d_T)*T; % Eqn 4 dT/dt
+            %y_dot(3*n+2) = u_T*TM_U + g_T +u_T*v*sum(TMP_is_U) - (b_T*M_U + d_T)*T; % Eqn 4 dT/dt
 
-            y_dot(4*n+3) = b_T*M_U*T + q*dot(u,TMP_is_U) - (u_T+c*sum(P_is))*TM_U; % Eqn 6 d(TM)/dt (unlabelled)
+            y_dot(3*n+2) = b_T*M_U*T + q*dot(u,TMP_is_U) - (u_T+c*sum(P_is))*TM_U; % Eqn 6 d(TM)/dt (unlabelled)
             
-            y_dot(4*n+4) = dot(u,MeP_is_U) - d_Me*Me_U; % Eqn 10 d(Me)/dt (unlabelled)
-                        
-                        
+            y_dot(3*n+3) = dot(u,MeP_is_U) - d_Me*Me_U; % Eqn 10 d(Me)/dt (unlabelled)
+                                                
             flag=0;
             new_data = [];
 
 return
 
- 
-           
+% function[scaling] = scaling(t)
+% 
+% t=t/3600;
+% 
+% if (t<=5)
+%     scaling = [0.05*t^2; 1; 1];
+% else
+%     scaling = [1.25*exp(-0.1*(t-5)); 1; 1];
+% end
+% 
+% return
+%            
