@@ -10,8 +10,8 @@ rand('twister', 1);
 % Set options %
 %%%%%%%%%%%%%%%
 
-Options.Burnin                = 1000;
-Options.NumOfPosteriorSamples = 5000;
+Options.Burnin                = 1;
+Options.NumOfPosteriorSamples = 1;
 
 
 % Set name for saving results
